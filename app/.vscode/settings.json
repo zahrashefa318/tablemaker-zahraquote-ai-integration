@@ -1,0 +1,13 @@
+{
+  "python.defaultInterpreterPath": "C:/Users/YourName/AppData/Local/Programs/Python/Python313/python.exe",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}",
+    "${workspaceFolder}/app",
+    "${workspaceFolder}/src"
+  ],
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}",
+    "${workspaceFolder}/app",
+    "${workspaceFolder}/src"
+  ]
+}

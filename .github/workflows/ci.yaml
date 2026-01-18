@@ -23,7 +23,7 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
           DISABLE_RATE_LIMITS: "1"
           AI_PROVIDER: "ollama"
         run: pytest

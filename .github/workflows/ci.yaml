@@ -26,4 +26,6 @@ jobs:
           DATABASE_URL: "sqlite:///:memory:"
           DISABLE_RATE_LIMITS: "1"
           AI_PROVIDER: "ollama"
+          JWT_SECRET: "test-secret"
+          JWT_ALGORITHM: "HS256"
         run: pytest

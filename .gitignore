@@ -1,9 +1,6 @@
-# ignore environment config
+.venv/
+__pycache__/
+*.pyc
 .env
-
-# ignore logs
-*.log
-
-# ignore OS files
-.DS_Store
-Thumbs.db
+.vscode/
+.pytest_cache/

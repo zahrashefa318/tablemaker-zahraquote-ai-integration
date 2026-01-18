@@ -3,11 +3,12 @@ from app.db.tableModels import Idempotency_key_storage
 from app.db.session import session
 from sqlalchemy import text
 import pytest
+import psycopg2
 
 @pytest.mark.integration
 def test_idempotency_saver_db_integration():
     db = session()
-    print(db.execute(text("SELECT DATABASE()")).fetchone())
+    
 
     idempotency_key = "DB_Test_123"
     response_status = 200

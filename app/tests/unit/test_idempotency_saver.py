@@ -1,5 +1,6 @@
 from unittest.mock import patch, MagicMock
 import pytest
+import psycopg2
 
 from app.services.idempotency import save_response
 from app.db.tableModels import Idempotency_key_storage

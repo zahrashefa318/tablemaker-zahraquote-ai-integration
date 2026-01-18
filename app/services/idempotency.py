@@ -4,6 +4,7 @@ from app.db.tableModels import Idempotency_key_storage
 import logging
 import hashlib
 import json
+import psycopg2
 
 logger = logging.getLogger("Zahra")
 #---Helper function-------

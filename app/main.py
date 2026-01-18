@@ -2,8 +2,13 @@ from fastapi import FastAPI
 from app.api.middleware import setup_middleware
 from app.api.exceptions import unified_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
-
 from app.api.routers import health, auth, table_request_router, quotes, openai,error
+
+
+from app.db.session import engine, Base
+Base.metadata.create_all(bind=engine)
+
+
 
 app = FastAPI()
 

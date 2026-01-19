@@ -42,6 +42,7 @@ def test_openai_chat_ollama_success(mock_post):
 # HuggingFace success
 # -------------------------------
 @patch("app.api.routers.openai.AI_PROVIDER", "huggingface")
+@patch("app.api.routers.openai.HF_API_TOKEN", "test-token")
 @patch("app.api.routers.openai.InferenceClient")
 def test_openai_chat_huggingface_success(mock_client):
     mock_instance = MagicMock()

@@ -1,92 +1,76 @@
-import pytest
+import os
 from fastapi.testclient import TestClient
-from unittest.mock import patch, Mock
-from requests.exceptions import RequestException
-
-from app.main import app  # adjust if your app import path is different
+from unittest.mock import patch, MagicMock
+from app.main import app
 
 client = TestClient(app)
 
 
-@pytest.mark.parametrize("message", ["Hello world", "Test traceback"])
-def test_openai_chat_success(monkeypatch, message):
-    """
-    This tests that a successful Ollama API call returns a JSON reply.
-    """
+def get_auth_headers():
+    token = client.get("/generate-token").json()["token"]
+    return {
+        "Authorization": f"Bearer {token}",
+        "Idempotency-Key": "test-idem-key",
+    }
 
-    # Mock response for requests.post
-    fake_resp = Mock()
-    fake_resp.json.return_value = {"response": f"Echo: {message}"}
-    fake_resp.raise_for_status.return_value = None
 
-    def fake_post(*args, **kwargs):
-        return fake_resp
+# -------------------------------
+# Ollama success
+# -------------------------------
+@patch("app.api.routers.openai.requests.post")
+def test_openai_chat_ollama_success(mock_post):
+    os.environ["AI_PROVIDER"] = "ollama"
 
-    # Monkeypatch requests.post
-    monkeypatch.setattr("requests.post", fake_post)
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"response": "Hello from Ollama"}
+    mock_resp.raise_for_status.return_value = None
 
-    response = client.post(
+    mock_post.return_value = mock_resp
+
+    r = client.post(
         "/openai/chat",
-        headers={"Idempotency-Key": "test-key-1"},
-        json={"message": message}
+        headers=get_auth_headers(),
+        json={"message": "Hello"},
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert "reply" in body
-    assert isinstance(body["reply"], str)
-    assert f"Echo: {message}" in body["reply"]
+    assert r.status_code == 200
+    assert r.json()["reply"] == "Hello from Ollama"
 
 
-@pytest.mark.parametrize("exc", [
-    RequestException("connection aborted"),
-    RequestException("timeout expired")
-])
-def test_openai_chat_ollama_connection_error(monkeypatch, exc):
-    """
-    When requests.post raises a RequestException, we should return a 500
-    with a detail message that contains the exception text.
-    """
+# -------------------------------
+# HuggingFace success
+# -------------------------------
+@patch("app.api.routers.openai.AI_PROVIDER", "huggingface")
+@patch("app.api.routers.openai.InferenceClient")
+def test_openai_chat_huggingface_success(mock_client):
+    mock_instance = MagicMock()
+    mock_instance.text_generation.return_value = "Hello from HF"
+    mock_client.return_value = mock_instance
 
-    def fake_post(*args, **kwargs):
-        raise exc
-
-    monkeypatch.setattr("requests.post", fake_post)
-
-    response = client.post(
+    r = client.post(
         "/openai/chat",
-        headers={"Idempotency-Key": "test-key-2"},
-        json={"message": "Hello"}
+        headers=get_auth_headers(),
+        json={"message": "Hello"},
     )
 
-    assert response.status_code == 500
-    assert response.json()["detail"] == str(exc)
+    assert r.status_code == 200
+    assert r.json()["reply"] == "Hello from HF"
 
 
-def test_openai_chat_generic_error(monkeypatch):
-    """
-    If something else goes wrong in the try block, we should still return
-    a 500 and include the exception message.
-    """
+# -------------------------------
+# Error handling
+# -------------------------------
+@patch("app.api.routers.openai.AI_PROVIDER", "ollama")
+@patch("app.api.routers.openai.requests.post")
+def test_openai_chat_ollama_timeout(mock_post):
+    mock_post.side_effect = Exception("timeout")
 
-    # error while parsing JSON or accessing .json()
-    class BadResponse:
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            raise ValueError("bad json")
-
-    def fake_post(*args, **kwargs):
-        return BadResponse()
-
-    monkeypatch.setattr("requests.post", fake_post)
-
-    response = client.post(
+    r = client.post(
         "/openai/chat",
-        headers={"Idempotency-Key": "test-key-3"},
-        json={"message": "trigger error"}
+        headers=get_auth_headers(),
+        json={"message": "Hello"},
     )
 
-    assert response.status_code == 500
-    assert response.json()["detail"] == "bad json"
+    assert r.status_code == 500
+    assert "ollama inference error" in r.json()["detail"].lower()

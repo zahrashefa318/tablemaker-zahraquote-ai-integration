@@ -3,6 +3,8 @@
 
 A production-ready FastAPI backend that provides secure, idempotent APIs for table generation and AI-powered quote/chat responses.
 The system supports local AI inference for development and cloud AI inference for production, with a fully automated CI/CD pipeline and PostgreSQL persistence.
+
+Live link:https://tablemaker-zahraquote-ai-integration.onrender.com
 ---
 
 ## Table of Contents

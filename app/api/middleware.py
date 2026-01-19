@@ -31,7 +31,7 @@ def setup_middleware(app: FastAPI):
         "https://YOUR-FRONTEND-RENDER-URL.onrender.com",],
         allow_methods=["*"],
         allow_headers=["*"],
-        allow_credentials=False,
+        allow_credentials=True,
     )
 
     # --------------- Request logging ---------------

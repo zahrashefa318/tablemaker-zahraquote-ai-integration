@@ -51,6 +51,11 @@ async def openai_chat(
         # LOCAL DEV: Ollama
         # =====================================================
         if AI_PROVIDER == "ollama":
+            if os.getenv("RENDER"):
+                return JSONResponse(
+                    status_code=503,
+                    content={"detail": "Ollama is not available in production"},
+                )
             try:
                 response = requests.post(
                     f"{OLLAMA_HOST}/api/generate",

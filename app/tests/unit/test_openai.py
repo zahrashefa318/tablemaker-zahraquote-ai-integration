@@ -43,11 +43,15 @@ def test_openai_chat_ollama_success(mock_post):
 # -------------------------------
 @patch("app.api.routers.openai.AI_PROVIDER", "huggingface")
 @patch("app.api.routers.openai.HF_API_TOKEN", "test-token")
-@patch("app.api.routers.openai.InferenceClient")
-def test_openai_chat_huggingface_success(mock_client):
-    mock_instance = MagicMock()
-    mock_instance.text_generation.return_value = "Hello from HF"
-    mock_client.return_value = mock_instance
+@patch("app.api.routers.openai.requests.post")
+def test_openai_chat_huggingface_success(mock_post):
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = [
+        {"generated_text": "Hello from HF"}
+    ]
+    mock_response.raise_for_status.return_value = None
+    mock_post.return_value = mock_response
 
     r = client.post(
         "/openai/chat",
@@ -57,6 +61,8 @@ def test_openai_chat_huggingface_success(mock_client):
 
     assert r.status_code == 200
     assert r.json()["reply"] == "Hello from HF"
+
+
 
 
 # -------------------------------

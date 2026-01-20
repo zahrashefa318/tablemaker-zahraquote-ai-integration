@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.rate_limit import limiter, RATE_LIMITS
 import asyncio
+import requests
 
 # -----------------------------
 # Request model
@@ -33,6 +34,13 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 # -----------------------------
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 HF_MODEL = "google/flan-t5-small"
+
+HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
+HF_HEADERS = {
+    "Authorization": f"Bearer {HF_API_TOKEN}",
+    "Content-Type": "application/json",
+}
+
 
 
 @router.post("/chat")
@@ -80,21 +88,38 @@ async def openai_chat(
         # =====================================================
         # PRODUCTION: Hugging Face
         # =====================================================
+       # -----------------------------
         if AI_PROVIDER == "huggingface":
             if not HF_API_TOKEN:
-                return JSONResponse(status_code=500, content={"detail": "HF_API_TOKEN not set"})
-
-            try:
-                client = InferenceClient(api_key=HF_API_TOKEN)
-
-                text = await asyncio.to_thread(
-                    client.text_generation,
-                    prompt,
-                    model=HF_MODEL,
-                    max_new_tokens=100,
+                return JSONResponse(
+                    status_code=500,
+                    content={"detail": "HF_API_TOKEN not set"},
                 )
 
-                return {"reply": text}
+            try:
+                def hf_call():
+                    r = requests.post(
+                        HF_API_URL,
+                        headers=HF_HEADERS,
+                        json={"inputs": prompt},
+                        timeout=20,   # CRITICAL
+                    )
+                    r.raise_for_status()
+                    return r.json()
+
+                result = await asyncio.to_thread(hf_call)
+
+                # flan-t5 returns list
+                if isinstance(result, list) and "generated_text" in result[0]:
+                    return {"reply": result[0]["generated_text"]}
+
+                return {"reply": str(result)}
+
+            except requests.exceptions.Timeout:
+                return JSONResponse(
+                    status_code=504,
+                    content={"detail": "HuggingFace timeout"},
+                )
 
             except Exception as e:
                 return JSONResponse(

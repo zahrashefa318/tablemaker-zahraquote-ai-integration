@@ -6,6 +6,7 @@ from huggingface_hub import InferenceClient
 from fastapi.responses import JSONResponse
 
 from app.core.rate_limit import limiter, RATE_LIMITS
+import asyncio
 
 # -----------------------------
 # Request model
@@ -31,7 +32,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 # Hugging Face (PRODUCTION)
 # -----------------------------
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
-HF_MODEL = "HuggingFaceH4/zephyr-7b-beta"
+HF_MODEL = "google/flan-t5-small"
 
 
 @router.post("/chat")
@@ -81,31 +82,25 @@ async def openai_chat(
         # =====================================================
         if AI_PROVIDER == "huggingface":
             if not HF_API_TOKEN:
-                raise HTTPException(
-                    status_code=500,
-                    detail="HF_API_TOKEN not configured",
-                )
+                return JSONResponse(status_code=500, content={"detail": "HF_API_TOKEN not set"})
 
             try:
-                client = InferenceClient(
-                    api_key=HF_API_TOKEN,
-                    timeout=25,  # ⬅️ REQUIRED for Render
-                )
+                client = InferenceClient(api_key=HF_API_TOKEN)
 
-                text = client.text_generation(
+                text = await asyncio.to_thread(
+                    client.text_generation,
                     prompt,
                     model=HF_MODEL,
-                    max_new_tokens=150,
+                    max_new_tokens=100,
                 )
 
                 return {"reply": text}
 
             except Exception as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"HuggingFace inference error: {str(e)}",
+                return JSONResponse(
+                    status_code=502,
+                    content={"detail": f"HuggingFace error: {str(e)}"},
                 )
-
         # =====================================================
         # Invalid provider
         # =====================================================

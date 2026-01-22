@@ -33,7 +33,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 # Hugging Face (PRODUCTION)
 # -----------------------------
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
-HF_MODEL = "HuggingFaceH4/zephyr-7b-beta"
+HF_MODEL = "microsoft/phi-2"
 
 HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
 HF_HEADERS = {

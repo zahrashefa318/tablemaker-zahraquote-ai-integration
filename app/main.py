@@ -11,6 +11,9 @@ Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI()
+@app.get("/version")
+def version():
+    return {"version": "AI_TIMEOUT_FIX_V3"}
 
 setup_middleware(app)
 app.add_exception_handler(Exception, unified_exception_handler)#“Whenever any exception (that isn’t already handled by something more specific) occurs during a request, call the function unified_exception_handler to process that exception.”

@@ -1,15 +1,11 @@
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 import os
 import requests
-from huggingface_hub import InferenceClient
-from fastapi.responses import JSONResponse
 
 from app.core.rate_limit import limiter, RATE_LIMITS
-import asyncio
-import requests
-import httpx
-from huggingface_hub import InferenceClient
+
 
 # -----------------------------
 # Request model
@@ -27,18 +23,11 @@ router = APIRouter(prefix="/openai", tags=["OpenAI"])
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 
+
 # -----------------------------
-# Hugging Face (PRODUCTION)
+# HuggingFace (PRODUCTION)
 # -----------------------------
-
-HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
-
-HF_API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
-HF_HEADERS = {
-    "Authorization": f"Bearer {os.getenv('HF_API_TOKEN', '')}",
-    "Content-Type": "application/json",
-}
-
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
 
 
 @router.post("/chat")
@@ -49,89 +38,82 @@ async def openai_chat(
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
 ):
     ai_provider = os.getenv("AI_PROVIDER", "huggingface").lower()
-
     prompt = body.message.strip()
 
     if not prompt:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    try:
-        # =====================================================
-        # LOCAL DEV: Ollama
-        # =====================================================
-        if ai_provider == "ollama":
-            if os.getenv("RENDER"):
-                return JSONResponse(
-                    status_code=503,
-                    content={"detail": "Ollama is not available in production"},
-                )
-            try:
-                response = requests.post(
-                    f"{OLLAMA_HOST}/api/generate",
-                    json={
-                        "model": OLLAMA_MODEL,
-                        "prompt": prompt,
-                        "stream": False,
-                    },
-                    timeout=180, 
-                )
-                response.raise_for_status()
-                data = response.json()
-                return {"reply": data.get("response", "")}
+    # =====================================================
+    # LOCAL: Ollama
+    # =====================================================
+    if ai_provider == "ollama":
+        # Ollama MUST never run on Render
+        if os.getenv("RENDER"):
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "Ollama is not available in production"},
+            )
 
-            except Exception as e:
-                return JSONResponse(
-                    status_code=500,
-                    content={"detail": f"Ollama inference error: {str(e)}"},
-                )
+        try:
+            response = requests.post(
+                f"{OLLAMA_HOST}/api/generate",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
+                    "stream": False,
+                },
+                timeout=180,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return {"reply": data.get("response", "")}
 
-        # =====================================================
-        # PRODUCTION: Hugging Face
-        # =====================================================
-       # -----------------------------
-            
-        if ai_provider == "huggingface":
-            hf_token = os.getenv("HF_API_TOKEN")
-            if not hf_token:
-                return JSONResponse(
-                    status_code=500,
-                    content={"detail": "HF_API_TOKEN not set"},
-                )
+        except Exception as e:
+            return JSONResponse(
+                status_code=500,
+                content={"detail": f"Ollama inference error: {str(e)}"},
+            )
 
-            try:
-                client = InferenceClient(
-                    model=HF_MODEL,
-                    token=hf_token,
-                    timeout=60,
-                )
+    # =====================================================
+    # PRODUCTION: HuggingFace (Render-safe)
+    # =====================================================
+    if ai_provider == "huggingface":
+        hf_token = os.getenv("HF_API_TOKEN")
+        if not hf_token:
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "HF_API_TOKEN not set"},
+            )
 
-                reply = client.text_generation(
-                    prompt,
-                    max_new_tokens=200,
-                )
+        try:
+            response = requests.post(
+                HF_MODEL_URL,
+                headers={"Authorization": f"Bearer {hf_token}"},
+                json={"inputs": prompt},
+                timeout=12,   # VERY IMPORTANT
+            )
 
-                return {"reply": reply}
+            response.raise_for_status()
+            data = response.json()
+            reply = data[0]["generated_text"]
 
-            except Exception as e:
-                return JSONResponse(
-                    status_code=502,
-                    content={"detail": f"HuggingFace error: {str(e)}"},
-                )
-        # =====================================================
-        # Invalid provider
-        # =====================================================
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unknown AI_PROVIDER: {ai_provider}",
-        )
+            return {"reply": reply}
 
-    except HTTPException:
-        # Let FastAPI handle proper JSON + status code
-        raise
+        except requests.exceptions.Timeout:
+            return {
+                "reply": "⚠️ AI is temporarily unavailable. The free HuggingFace model is taking too long to respond, and the hosting server blocks long requests. Please try again in a few seconds."
+            }
 
-    except Exception as e:
-        # Absolute last-resort safety net (prevents 502)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unhandled AI error: {str(e)}",
-        )
+        except Exception:
+            return {
+                "reply": "⚠️ AI service is currently busy (free-tier model delay). Please retry shortly."
+            }
+
+
+    # =====================================================
+    # Invalid provider
+    # =====================================================
+    raise HTTPException(
+        status_code=500,
+        detail=f"Unknown AI_PROVIDER: {ai_provider}",
+    )

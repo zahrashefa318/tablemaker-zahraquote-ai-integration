@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from app.core.rate_limit import limiter, RATE_LIMITS
 import asyncio
 import requests
+import httpx
 
 # -----------------------------
 # Request model
@@ -18,10 +19,6 @@ class ChatRequest(BaseModel):
 
 router = APIRouter(prefix="/openai", tags=["OpenAI"])
 
-# -----------------------------
-# Provider selection
-# -----------------------------
-AI_PROVIDER = os.getenv("AI_PROVIDER", "huggingface").lower()
 
 # -----------------------------
 # Ollama (LOCAL ONLY)
@@ -32,12 +29,12 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 # -----------------------------
 # Hugging Face (PRODUCTION)
 # -----------------------------
-HF_API_TOKEN = os.getenv("HF_API_TOKEN")
+
 HF_MODEL = "microsoft/phi-2"
 
-HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
+HF_API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
 HF_HEADERS = {
-    "Authorization": f"Bearer {HF_API_TOKEN}",
+    "Authorization": f"Bearer {os.getenv('HF_API_TOKEN', '')}",
     "Content-Type": "application/json",
 }
 
@@ -50,6 +47,8 @@ async def openai_chat(
     body: ChatRequest,
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
 ):
+    ai_provider = os.getenv("AI_PROVIDER", "huggingface").lower()
+
     prompt = body.message.strip()
 
     if not prompt:
@@ -59,7 +58,7 @@ async def openai_chat(
         # =====================================================
         # LOCAL DEV: Ollama
         # =====================================================
-        if AI_PROVIDER == "ollama":
+        if ai_provider == "ollama":
             if os.getenv("RENDER"):
                 return JSONResponse(
                     status_code=503,
@@ -89,31 +88,25 @@ async def openai_chat(
         # PRODUCTION: Hugging Face
         # =====================================================
        # -----------------------------
-        if AI_PROVIDER == "huggingface":
-            if not HF_API_TOKEN:
+        if ai_provider == "huggingface":
+            hf_token = os.getenv("HF_API_TOKEN")
+            if not hf_token:
                 return JSONResponse(
                     status_code=500,
                     content={"detail": "HF_API_TOKEN not set"},
                 )
 
             try:
-                def hf_call():
-                    r = requests.post(
-                        HF_API_URL,
-                        headers=HF_HEADERS,
-                        json={"inputs": prompt},
-                        timeout=20,   # CRITICAL
-                    )
-                    r.raise_for_status()
-                    return r.json()
+                    async with httpx.AsyncClient(timeout=25) as client:
+                        response = await client.post(
+                            HF_API_URL,
+                            headers={"Authorization": f"Bearer {hf_token}"},
+                            json={"inputs": prompt},
+                        )
 
-                result = await asyncio.to_thread(hf_call)
-
-                # flan-t5 returns list
-                if isinstance(result, list) and "generated_text" in result[0]:
-                    return {"reply": result[0]["generated_text"]}
-
-                return {"reply": str(result)}
+                    data = response.json()
+                    reply = data[0]["generated_text"]
+                    return {"reply": reply}
 
             except requests.exceptions.Timeout:
                 return JSONResponse(
@@ -131,7 +124,7 @@ async def openai_chat(
         # =====================================================
         raise HTTPException(
             status_code=500,
-            detail=f"Unknown AI_PROVIDER: {AI_PROVIDER}",
+            detail=f"Unknown AI_PROVIDER: {ai_provider}",
         )
 
     except HTTPException:

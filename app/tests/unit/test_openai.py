@@ -1,6 +1,6 @@
 import os
 from fastapi.testclient import TestClient
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, MagicMock
 from app.main import app
 
 client = TestClient(app)
@@ -39,24 +39,17 @@ def test_openai_chat_ollama_success(mock_post):
 
 
 # ----------------------------------------------------
-# HuggingFace success  (CORRECT ASYNC MOCK)
+# HuggingFace success (CORRECT FOR InferenceClient)
 # ----------------------------------------------------
-@patch("app.api.routers.openai.httpx.AsyncClient")
+@patch("app.api.routers.openai.InferenceClient")
 def test_openai_chat_huggingface_success(mock_client):
     os.environ["AI_PROVIDER"] = "huggingface"
     os.environ["HF_API_TOKEN"] = "test-token"
 
-    mock_instance = AsyncMock()
-    mock_client.return_value.__aenter__.return_value = mock_instance
+    mock_instance = MagicMock()
+    mock_instance.text_generation.return_value = "Hello from HF"
 
-    # IMPORTANT: MagicMock, not AsyncMock
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = [
-        {"generated_text": "Hello from HF"}
-    ]
-
-    mock_instance.post.return_value = mock_response
+    mock_client.return_value = mock_instance
 
     r = client.post(
         "/openai/chat",
@@ -66,7 +59,9 @@ def test_openai_chat_huggingface_success(mock_client):
 
     assert r.status_code == 200
     assert r.json()["reply"] == "Hello from HF"
-    # ---------------------------------------------------
+
+
+# ----------------------------------------------------
 # Ollama timeout error
 # ----------------------------------------------------
 @patch("app.api.routers.openai.requests.post")
@@ -82,4 +77,4 @@ def test_openai_chat_ollama_timeout(mock_post):
     )
 
     assert r.status_code == 500
-    assert "timeout" in r.json()["detail"].lower()
+    assert "ollama inference error" in r.json()["detail"].lower()

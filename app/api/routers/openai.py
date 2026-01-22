@@ -9,6 +9,7 @@ from app.core.rate_limit import limiter, RATE_LIMITS
 import asyncio
 import requests
 import httpx
+from huggingface_hub import InferenceClient
 
 # -----------------------------
 # Request model
@@ -30,7 +31,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 # Hugging Face (PRODUCTION)
 # -----------------------------
 
-HF_MODEL = "microsoft/phi-2"
+HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
 
 HF_API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
 HF_HEADERS = {
@@ -88,6 +89,7 @@ async def openai_chat(
         # PRODUCTION: Hugging Face
         # =====================================================
        # -----------------------------
+            
         if ai_provider == "huggingface":
             hf_token = os.getenv("HF_API_TOKEN")
             if not hf_token:
@@ -97,22 +99,18 @@ async def openai_chat(
                 )
 
             try:
-                    async with httpx.AsyncClient(timeout=25) as client:
-                        response = await client.post(
-                            HF_API_URL,
-                            headers={"Authorization": f"Bearer {hf_token}"},
-                            json={"inputs": prompt},
-                        )
-
-                    data = response.json()
-                    reply = data[0]["generated_text"]
-                    return {"reply": reply}
-
-            except requests.exceptions.Timeout:
-                return JSONResponse(
-                    status_code=504,
-                    content={"detail": "HuggingFace timeout"},
+                client = InferenceClient(
+                    model=HF_MODEL,
+                    token=hf_token,
+                    timeout=60,
                 )
+
+                reply = client.text_generation(
+                    prompt,
+                    max_new_tokens=200,
+                )
+
+                return {"reply": reply}
 
             except Exception as e:
                 return JSONResponse(

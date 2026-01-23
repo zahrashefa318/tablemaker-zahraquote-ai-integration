@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 import os
 import requests
 
-from app.core.rate_limit import limiter, RATE_LIMITS
+
 
 
 # -----------------------------
@@ -31,7 +31,7 @@ HF_MODEL_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
 
 
 @router.post("/chat")
-@limiter.limit(RATE_LIMITS["openai"])
+
 async def openai_chat(
     request: Request,
     body: ChatRequest,

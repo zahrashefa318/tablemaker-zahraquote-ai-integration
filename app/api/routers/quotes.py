@@ -5,7 +5,7 @@ from app.services import idempotency
 from app.core.security import get_current_user
 import httpx
 import logging
-from app.core.rate_limit import limiter,RATE_LIMITS
+
 from fastapi import Request
 
 router = APIRouter(prefix="/quotes", tags=["ZahraQuotes"])

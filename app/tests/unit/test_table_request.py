@@ -1,6 +1,6 @@
 from app.main import app
 from fastapi.testclient import TestClient
-from app.api.routers import table_request_router
+ 
 client=TestClient(app)
 def test_html_table_request():
     idempotency="table_test_idem"

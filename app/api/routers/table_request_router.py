@@ -2,14 +2,14 @@ from fastapi import APIRouter, Depends, Header, BackgroundTasks
 from app.schema.request_format import TableRequest
 from app.services import table_service, idempotency
 from app.core.security import get_current_user
-from app.core.rate_limit import limiter, RATE_LIMITS
+
 from fastapi import Request
 
 
 router = APIRouter(prefix="/table_request_router", tags=["TableRequest"])
 
 @router.post("/create")
-@limiter.limit(RATE_LIMITS["strict"])
+
 def create_table(
     request: Request,
     req: TableRequest,

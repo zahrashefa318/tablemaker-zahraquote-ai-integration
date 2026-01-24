@@ -16,6 +16,8 @@ Live link:https://tablemaker-zahraquote-ai-integration.onrender.com
 
     - Detects conflicting payloads with the same idempotency key
 
+-  External API Integration( Zahra-Quotes-API)
+
 -  AI Integration
 
     - Local development: Ollama (no API key required)

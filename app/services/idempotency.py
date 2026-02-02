@@ -44,7 +44,7 @@ def cleanup_expired(minutes=60):
     db = session()
     try:
         db.query(Idempotency_key_storage).filter(
-            Idempotency_key_storage.created_at <= datetime.now(timezone.utc) - timedelta(minutes=minutes)
+            Idempotency_key_storage.created_at <= datetime.now(timezone.utc) - timedelta(minutes=minutes) #This gives a time 60 minutes before the current time.it just means 1 hour.and the whole sentence (now- 1 hour) means 1 hour ago.
         ).delete(synchronize_session=False)
         db.commit()
         logger.info("Expired idempotency keys cleaned up")

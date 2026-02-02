@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 import os
 import requests
+from app.core.security import get_current_user
 
 
 
@@ -36,6 +37,7 @@ async def openai_chat(
     request: Request,
     body: ChatRequest,
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
+    user: str = Depends(get_current_user),
 ):
     ai_provider = os.getenv("AI_PROVIDER", "huggingface").lower()
     prompt = body.message.strip()

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Header, BackgroundTasks
 from app.schema.request_format import TableRequest
 from app.services import table_service, idempotency
 from app.core.security import get_current_user
+from fastapi import HTTPException
 
 from fastapi import Request
 
@@ -18,7 +19,14 @@ def create_table(
     user: str = Depends(get_current_user),
 ):
     cached = idempotency.get_cached_response(idempotency_key)
+    incoming_hash = idempotency.hash_body(req.model_dump())
+
     if cached:
+        if cached.request_hash != incoming_hash:
+            raise HTTPException(
+                status_code=409,
+                detail="Idempotency-Key reused with a different request body.",
+            )
         return cached.response_body
 
     cols = table_service.order_columns(req.rows, req.columns)
@@ -34,7 +42,7 @@ def create_table(
         idempotency_key,
         200,
         final_response,      # ✅ full response
-        req.model_dump(),
+        req.model_dump(),   # It serializes the model into a dictionary
     )
 
     bg.add_task(idempotency.cleanup_expired)

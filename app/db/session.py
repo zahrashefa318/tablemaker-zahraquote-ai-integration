@@ -15,15 +15,24 @@ if not DATABASE_URL:
 
 # Create SQLAlchemy engine
 if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(
-        DATABASE_URL,
-        echo=True,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    if DATABASE_URL == "sqlite:///:memory:":
+        # CI/CD in-memory database
+        engine = create_engine(
+            DATABASE_URL,
+            echo=True,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+    else:
+        # File-based SQLite (local and Render)
+        engine = create_engine(
+            DATABASE_URL,
+            echo=True,
+            connect_args={"check_same_thread": False},
+        )
 else:
+    # PostgreSQL or others
     engine = create_engine(DATABASE_URL, echo=True)
-
 # Create session factory
 SessionLocal = sessionmaker(
     bind=engine,

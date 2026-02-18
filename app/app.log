@@ -124246,3 +124246,22 @@ WHERE "Idempotency_key_storage".key = %(key_1)s
 2026-01-24 18:30:20,717 - INFO - [cached since 2.105e+04s ago] {'key': 'da035e73c24d17095b796edd43c5f7d1', 'created_at': datetime.datetime(2026, 1, 24, 17, 39, 11, 991920, tzinfo=datetime.timezone.utc), 'response_status': 200, 'response_body': '{"response": "why didi the chicken cross the road? to get to the other side!"}', 'request_hash': '208edc73e17682d9a97a120911508c1231f61eb63e61f73849a2809f900b3f6e'}
 2026-01-24 18:30:20,718 - INFO - COMMIT
 2026-01-24 18:30:20,720 - INFO - POST /quotes/process -Idempotency-Key:da035e73c24d17095b796edd43c5f7d1 -Status code:200 -process time:1.1228s -Client host:127.0.0.1
+2026-02-17 20:41:03,092 - INFO - Logger initialized BEFORE app creation
+2026-02-17 20:41:03,125 - INFO - BEGIN (implicit)
+2026-02-17 20:41:03,130 - INFO - PRAGMA main.table_info("Idempotency_key_storage")
+2026-02-17 20:41:03,141 - INFO - [raw sql] ()
+2026-02-17 20:41:03,162 - INFO - PRAGMA temp.table_info("Idempotency_key_storage")
+2026-02-17 20:41:03,172 - INFO - [raw sql] ()
+2026-02-17 20:41:03,174 - INFO - 
+CREATE TABLE "Idempotency_key_storage" (
+	"key" VARCHAR(255) NOT NULL, 
+	created_at DATETIME, 
+	response_status INTEGER NOT NULL, 
+	response_body JSON NOT NULL, 
+	request_hash VARCHAR(64) NOT NULL, 
+	PRIMARY KEY ("key")
+)
+
+
+2026-02-17 20:41:03,180 - INFO - [no key 0.00622s] ()
+2026-02-17 20:41:03,201 - INFO - COMMIT

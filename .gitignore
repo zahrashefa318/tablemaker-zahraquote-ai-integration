@@ -4,3 +4,7 @@ __pycache__/
 .env
 .vscode/
 .pytest_cache/
+# SQLite database files
+*.db
+# Logs
+logs/
